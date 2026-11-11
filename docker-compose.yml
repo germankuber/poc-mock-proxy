@@ -1,0 +1,66 @@
+name: poc-mock-proxy
+
+x-middleware: &middleware
+  image: python:3.12-slim
+  command: python /app/server.py
+  volumes:
+    - ./middleware-fake/server.py:/app/server.py:ro
+    - ./certs:/certs:ro
+  depends_on:
+    - bank-fake
+
+services:
+  bank-fake:
+    image: python:3.12-slim
+    command: python /app/server.py
+    volumes:
+      - ./bank-fake/server.py:/app/server.py:ro
+      - ./certs:/certs:ro
+
+  mock-proxy:
+    image: mitmproxy/mitmproxy:11.0.2
+    command: >
+      mitmdump --listen-port 8888 --set connection_strategy=lazy --set confdir=/confdir -s /app/addon.py
+    volumes:
+      - ./mock-proxy/addon.py:/app/addon.py:ro
+      - ./certs/mitm-confdir:/confdir
+      - ./state:/state:ro
+    networks:
+      - default
+      - mock-server
+
+  middleware-fake:
+    <<: *middleware
+    environment:
+      BANK_BASE_URL: https://bank-fake:8443
+      HTTPS_PROXY: http://mock-proxy:8888
+    ports:
+      - "9000:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-fake-no-dev-ca:
+    <<: *middleware
+    environment:
+      BANK_BASE_URL: https://bank-fake:8443
+      HTTPS_PROXY: http://mock-proxy:8888
+      CA_BUNDLE: /certs/bundle-bank-only.crt
+    ports:
+      - "9001:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-fake-prod:
+    <<: *middleware
+    environment:
+      BANK_BASE_URL: https://bank-fake:8443
+      CA_BUNDLE: /certs/bundle-bank-only.crt
+    ports:
+      - "9002:9000"
+
+networks:
+  mock-server:
+    external: true
+    name: ${MOCK_SERVER_NETWORK:-mock-server_default}
