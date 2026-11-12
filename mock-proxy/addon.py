@@ -4,7 +4,7 @@ import logging
 from mitmproxy import http, tls
 
 STATE_FILE = "/state/state.json"
-MOCK_SERVER_HOST = "proxy"
+MOCK_SERVER_HOST = "mock-server"
 MOCK_SERVER_PORT = 8080
 
 log = logging.getLogger("mock-proxy")

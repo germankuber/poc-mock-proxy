@@ -1,3 +1,6 @@
 certs/*
 !certs/.gitkeep
 .DS_Store
+target/
+bin/
+obj/
