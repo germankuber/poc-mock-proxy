@@ -13,5 +13,6 @@ with open(path) as handle:
 state["bank-fake"]["enabled"] = enabled
 with open(path, "w") as handle:
     json.dump(state, handle)
+    handle.write("\n")
 PY
 echo "bank-fake mock enabled=$enabled"

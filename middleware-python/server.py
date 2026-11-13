@@ -32,6 +32,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        if self.path == "/health":
+            return self.reply(200, {"status": "ok"})
         parts = self.path.strip("/").split("/")
         if len(parts) != 2 or parts[0] != "accounts":
             return self.reply(404, {"error": "not found"})

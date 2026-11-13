@@ -1,13 +1,20 @@
 name: poc-mock-proxy
 
-x-middleware: &middleware
+x-bank: &bank
+  BANK_BASE_URL: https://bank-fake:8443
+
+x-proxy: &proxy
+  HTTPS_PROXY: http://mock-proxy:8888
+
+x-bank-only: &bank-only
+  CA_BUNDLE: /certs/bundle-bank-only.crt
+
+x-python: &python
   image: python:3.12-slim
   command: python /app/server.py
   volumes:
-    - ./middleware-fake/server.py:/app/server.py:ro
+    - ./middleware-python/server.py:/app/server.py:ro
     - ./certs:/certs:ro
-  depends_on:
-    - bank-fake
 
 services:
   bank-fake:
@@ -17,6 +24,12 @@ services:
       - ./bank-fake/server.py:/app/server.py:ro
       - ./certs:/certs:ro
 
+  mock-server:
+    image: python:3.12-slim
+    command: python /app/server.py
+    volumes:
+      - ./mock-server/server.py:/app/server.py:ro
+
   mock-proxy:
     image: mitmproxy/mitmproxy:11.0.2
     command: >
@@ -25,42 +38,178 @@ services:
       - ./mock-proxy/addon.py:/app/addon.py:ro
       - ./certs/mitm-confdir:/confdir
       - ./state:/state:ro
-    networks:
-      - default
+    depends_on:
       - mock-server
 
-  middleware-fake:
-    <<: *middleware
+  middleware-python:
+    <<: *python
     environment:
-      BANK_BASE_URL: https://bank-fake:8443
-      HTTPS_PROXY: http://mock-proxy:8888
+      <<: [*bank, *proxy]
     ports:
       - "9000:9000"
     depends_on:
       - bank-fake
       - mock-proxy
 
-  middleware-fake-no-dev-ca:
-    <<: *middleware
+  middleware-python-no-dev-ca:
+    <<: *python
     environment:
-      BANK_BASE_URL: https://bank-fake:8443
-      HTTPS_PROXY: http://mock-proxy:8888
-      CA_BUNDLE: /certs/bundle-bank-only.crt
+      <<: [*bank, *proxy, *bank-only]
     ports:
       - "9001:9000"
     depends_on:
       - bank-fake
       - mock-proxy
 
-  middleware-fake-prod:
-    <<: *middleware
+  middleware-python-prod:
+    <<: *python
     environment:
-      BANK_BASE_URL: https://bank-fake:8443
-      CA_BUNDLE: /certs/bundle-bank-only.crt
+      <<: [*bank, *bank-only]
     ports:
       - "9002:9000"
+    depends_on:
+      - bank-fake
 
-networks:
-  mock-server:
-    external: true
-    name: ${MOCK_SERVER_NETWORK:-mock-server_default}
+  middleware-go:
+    build: ./middleware-go
+    image: poc-mock-proxy-middleware-go
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *proxy]
+    ports:
+      - "9010:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-go-no-dev-ca:
+    image: poc-mock-proxy-middleware-go
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *proxy, *bank-only]
+    ports:
+      - "9011:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-go-prod:
+    image: poc-mock-proxy-middleware-go
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *bank-only]
+    ports:
+      - "9012:9000"
+    depends_on:
+      - bank-fake
+
+  middleware-java:
+    build: ./middleware-java
+    image: poc-mock-proxy-middleware-java
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *proxy]
+    ports:
+      - "9020:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-java-no-dev-ca:
+    image: poc-mock-proxy-middleware-java
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *proxy, *bank-only]
+    ports:
+      - "9021:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-java-prod:
+    image: poc-mock-proxy-middleware-java
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *bank-only]
+    ports:
+      - "9022:9000"
+    depends_on:
+      - bank-fake
+
+  middleware-rust:
+    build: ./middleware-rust
+    image: poc-mock-proxy-middleware-rust
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *proxy]
+    ports:
+      - "9030:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-rust-no-dev-ca:
+    image: poc-mock-proxy-middleware-rust
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *proxy, *bank-only]
+    ports:
+      - "9031:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-rust-prod:
+    image: poc-mock-proxy-middleware-rust
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *bank-only]
+    ports:
+      - "9032:9000"
+    depends_on:
+      - bank-fake
+
+  middleware-dotnet:
+    build: ./middleware-dotnet
+    image: poc-mock-proxy-middleware-dotnet
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *proxy]
+    ports:
+      - "9040:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-dotnet-no-dev-ca:
+    image: poc-mock-proxy-middleware-dotnet
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *proxy, *bank-only]
+    ports:
+      - "9041:9000"
+    depends_on:
+      - bank-fake
+      - mock-proxy
+
+  middleware-dotnet-prod:
+    image: poc-mock-proxy-middleware-dotnet
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      <<: [*bank, *bank-only]
+    ports:
+      - "9042:9000"
+    depends_on:
+      - bank-fake
